@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheat Farm Tycoon</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 20%, #90EE90 60%, #228B22 100%);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            cursor: crosshair;
+            display: block;
+        }
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.95), rgba(160, 82, 45, 0.95));
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border: 2px solid #CD853F;
+            min-width: 200px;
+        }
+
+        #shopPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, rgba(34, 139, 34, 0.95), rgba(50, 205, 50, 0.95));
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border: 2px solid #32CD32;
+            min-width: 250px;
+        }
+
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .shop-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+            border-color: rgba(255,255,255,0.3);
+        }
+        
+        .shop-item.info-only {
+            cursor: default;
+        }
+        
+        .shop-item.info-only:hover {
+            transform: none;
+            background: rgba(255,255,255,0.1);
+        }
+
+        #inventory {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.95), rgba(160, 82, 45, 0.95));
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border: 2px solid #CD853F;
+        }
+
+        .inventory-slot {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #654321, #8B4513);
+            border: 2px solid #CD853F;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .inventory-slot:hover {
+            background: linear-gradient(135deg, #7B5A3B, #A0522D);
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .inventory-slot.selected {
+            border-color: #FFD700;
+            box-shadow: 0 0 20px #FFD700;
+            background: linear-gradient(135deg, #DAA520, #FFD700);
+            color: #000;
+        }
+
+        .item-icon {
+            font-size: 24px;
+            margin-bottom: 3px;
+        }
+
+        .item-count {
+            font-size: 9px;
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        #notifications {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            width: 300px;
+            z-index: 1000;
+        }
+
+        .notification {
+            background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+            color: white;
+            padding: 15px;
+            margin: 5px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transform: translateX(100%);
+            animation: slideIn 0.5s ease-out forwards, fadeOut 0.5s ease-in 4.5s forwards;
+            border-left: 4px solid #FF4757;
+        }
+
+        @keyframes slideIn {
+            to { transform: translateX(0); }
+        }
+
+        @keyframes fadeOut {
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        #gameTitle {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 52px;
+            color: #8B4513;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            text-align: center;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 3s ease;
+            font-weight: bold;
+        }
+
+        .floating-text {
+            position: absolute;
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 16px;
+            pointer-events: none;
+            z-index: 200;
+            animation: floatUp 2s ease-out forwards;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        @keyframes floatUp {
+            0% { 
+                opacity: 1; 
+                transform: translateY(0px) scale(1);
+            }
+            100% { 
+                opacity: 0; 
+                transform: translateY(-50px) scale(1.2);
+            }
+        }
+
+        .locust {
+            position: absolute;
+            font-size: 24px;
+            z-index: 999;
+            animation: flyAcross 5s linear;
+            pointer-events: none;
+        }
+
+        @keyframes flyAcross {
+            0% { 
+                transform: translateX(-100px) rotate(0deg); 
+                opacity: 0;
+            }
+            10% { 
+                opacity: 1;
+            }
+            90% { 
+                opacity: 1;
+            }
+            100% { 
+                transform: translateX(calc(100vw + 100px)) rotate(360deg); 
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameTitle">🌾 WHEAT FARM TYCOON 🌾<br><small>Farmářská Říše</small></div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div><strong>💰 Peníze:</strong> <span id="money">1000</span>$</div>
+            <div><strong>🏡 Pozemky:</strong> <span id="ownedLands">25</span></div>
+            <div><strong>⭐ Úroveň:</strong> <span id="level">1</span></div>
+            <div><strong>🌾 Sklizeň:</strong> <span id="totalHarvest">0</span></div>
+            <div id="tractorStatus" style="display: none;"><strong>🚜 Traktor:</strong> Vlastněn</div>
+            <div id="megatractorStatus" style="display: none;"><strong>🚚 Mega Traktor:</strong> Vlastněn</div>
+            <div id="pesticideStatus" style="display: none;"><strong>🧪 Pesticidy:</strong> Dostupné</div>
+        </div>
+
+        <div id="shopPanel">
+            <h3>🏪 FARMÁŘSKÝ OBCHOD</h3>
+            <div class="shop-item info-only">
+                <span>🏞️ Koupit pozemek</span>
+                <span id="landInfo">Klikni na mapu</span>
+            </div>
+            <div class="shop-item" onclick="game.buyItem('seeds')">
+                <span>🌱 Semena (10ks)</span>
+                <span>50$</span>
+            </div>
+            <div class="shop-item" onclick="game.buyItem('tractor')" id="tractorItem">
+                <span>🚜 Traktor (2x2 pole)</span>
+                <span>2000$</span>
+            </div>
+            <div class="shop-item" onclick="game.buyItem('megatractor')" id="megatractorItem">
+                <span>🚚 Mega Traktor (6x6)</span>
+                <span>10000$</span>
+            </div>
+            <div class="shop-item" onclick="game.buyItem('pesticideupgrade')" id="pesticideUpgradeItem">
+                <span>🧪 Pesticidní laboratoř</span>
+                <span>3000$</span>
+            </div>
+            <div class="shop-item" onclick="game.buyItem('pesticides')" id="pesticidesItem" style="display: none;">
+                <span>☠️ Pesticidy (10ks)</span>
+                <span>50$</span>
+            </div>
+        </div>
+
+        <div id="inventory">
+            <div class="inventory-slot selected" onclick="game.selectTool('select', event)">
+                <div class="item-icon">👆</div>
+                <div class="item-count">Nákup/Info</div>
+            </div>
+            <div class="inventory-slot" onclick="game.selectTool('hoe', event)">
+                <div class="item-icon">🔨</div>
+                <div class="item-count">Orat</div>
+            </div>
+            <div class="inventory-slot" onclick="game.selectTool('seeds', event)">
+                <div class="item-icon">🌱</div>
+                <div class="item-count" id="seedCount">20</div>
+            </div>
+            <div class="inventory-slot" onclick="game.selectTool('water', event)">
+                <div class="item-icon">💧</div>
+                <div class="item-count">Zalít</div>
+            </div>
+            <div class="inventory-slot" onclick="game.selectTool('harvest', event)">
+                <div class="item-icon">✂️</div>
+                <div class="item-count">Sklidit</div>
+            </div>
+            <div class="inventory-slot" onclick="game.selectTool('pesticides', event)" id="pesticidesSlot" style="display: none;">
+                <div class="item-icon">☠️</div>
+                <div class="item-count" id="pesticideCount">0</div>
+            </div>
+        </div>
+
+        <div id="notifications"></div>
+    </div>
+
+    <script>
+        class WheatFarmGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                this.TILE_SIZE = 50;
+                this.GRID_WIDTH = Math.floor(this.canvas.width / this.TILE_SIZE);
+                this.GRID_HEIGHT = Math.floor(this.canvas.height / this.TILE_SIZE);
+
+                this.gameState = {
+                    money: 1000,
+                    level: 1,
+                    ownedLands: 0,
+                    seeds: 20,
+                    totalHarvest: 0,
+                    selectedTool: 'select',
+                    hasTractor: false,
+                    hasMegaTractor: false,
+                    hasPesticideUpgrade: false,
+                    pesticides: 0,
+                    lastLocustAttack: Date.now()
+                };
+
+                this.gameGrid = [];
+                this.landPrices = [];
+                this.lastTimestamp = 0;
+                this.frameCount = 0;
+                
+                /**************************************************/
+                /* NOVINKA: Vytvoření textur pro hezčí grafiku    */
+                /**************************************************/
+                this.textures = {
+                    grass: this.createTexture(['#6A8A28', '#7BA02C', '#83A82F'], 8),
+                    tilled: this.createTexture(['#6B4F35', '#78593B', '#5C442D'], 8)
+                };
+
+                this.shopItems = {
+                    seeds: { cost: 50, check: () => true },
+                    tractor: { cost: 2000, check: () => !this.gameState.hasTractor },
+                    megatractor: { cost: 10000, check: () => !this.gameState.hasMegaTractor },
+                    pesticideupgrade: { cost: 3000, check: () => !this.gameState.hasPesticideUpgrade },
+                    pesticides: { cost: 50, check: () => this.gameState.hasPesticideUpgrade }
+                };
+
+                this.init();
+            }
+            
+            /**************************************************/
+            /* NOVINKA: Pomocná funkce pro generování textur  */
+            /**************************************************/
+            createTexture(colors, size) {
+                const textureCanvas = document.createElement('canvas');
+                textureCanvas.width = size;
+                textureCanvas.height = size;
+                const textureCtx = textureCanvas.getContext('2d');
+
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        textureCtx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                        textureCtx.fillRect(x, y, 1, 1);
+                    }
+                }
+                return this.ctx.createPattern(textureCanvas, 'repeat');
+            }
+
+            hideElement(id) { document.getElementById(id).style.display = 'none'; }
+            showElement(id, displayType = 'block') { document.getElementById(id).style.display = displayType; }
+            setText(id, text) { document.getElementById(id).textContent = text; }
+            randomRange(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+            createTile(isOwned) {
+                return {
+                    type: 'grass',
+                    stage: 0,
+                    timer: 0,
+                    owned: isOwned,
+                    purchasable: false,
+                    fertility: this.randomRange(70, 100),
+                    moisture: this.randomRange(20, 80),
+                    animationPhase: Math.random() * Math.PI * 2,
+                    hasProtection: false
+                };
+            }
+
+            init() {
+                const centerX = Math.floor(this.GRID_WIDTH / 2);
+                const centerY = Math.floor(this.GRID_HEIGHT / 2);
+                
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    this.gameGrid[y] = [];
+                    this.landPrices[y] = [];
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        const isStarting = (x >= centerX - 2 && x <= centerX + 2 && 
+                                            y >= centerY - 2 && y <= centerY + 2);
+                        this.gameGrid[y][x] = this.createTile(isStarting);
+                        if (isStarting) this.gameState.ownedLands++;
+                        this.landPrices[y][x] = this.randomRange(200, 500);
+                    }
+                }
+                
+                this.updatePurchasableLands();
+                this.updateUI();
+                this.setupEventListeners();
+                
+                requestAnimationFrame(this.gameLoop.bind(this));
+                
+                setTimeout(() => {
+                    document.getElementById('gameTitle').style.opacity = '0';
+                    setTimeout(() => {
+                        this.hideElement('gameTitle');
+                    }, 3000);
+                }, 3000);
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('click', (e) => this.handleCanvasClick(e));
+                window.addEventListener('resize', () => this.handleResize());
+            }
+
+            handleCanvasClick(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) / this.TILE_SIZE);
+                const y = Math.floor((e.clientY - rect.top) / this.TILE_SIZE);
+
+                if (x >= 0 && x < this.GRID_WIDTH && y >= 0 && y < this.GRID_HEIGHT) {
+                    this.handleTileClick(x, y, e.clientX, e.clientY);
+                }
+            }
+
+            handleResize() {
+                const oldGridWidth = this.GRID_WIDTH;
+                const oldGridHeight = this.GRID_HEIGHT;
+
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.GRID_WIDTH = Math.floor(this.canvas.width / this.TILE_SIZE);
+                this.GRID_HEIGHT = Math.floor(this.canvas.height / this.TILE_SIZE);
+
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    if (y >= oldGridHeight) {
+                        this.gameGrid[y] = [];
+                        this.landPrices[y] = [];
+                    }
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        if (y >= oldGridHeight || x >= oldGridWidth) {
+                            this.gameGrid[y][x] = this.createTile(false);
+                            this.landPrices[y][x] = this.randomRange(300, 800);
+                        }
+                    }
+                }
+
+                this.gameGrid.length = this.GRID_HEIGHT;
+                this.landPrices.length = this.GRID_HEIGHT;
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    this.gameGrid[y].length = this.GRID_WIDTH;
+                    this.landPrices[y].length = this.GRID_WIDTH;
+                }
+
+                this.updatePurchasableLands();
+            }
+
+            updatePurchasableLands() {
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        if (!this.gameGrid[y][x].owned) {
+                            let adjacentOwned = false;
+                            
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dx = -1; dx <= 1; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const ny = y + dy;
+                                    const nx = x + dx;
+                                    if (ny >= 0 && ny < this.GRID_HEIGHT && 
+                                        nx >= 0 && nx < this.GRID_WIDTH && 
+                                        this.gameGrid[ny][nx].owned) {
+                                        adjacentOwned = true;
+                                        break;
+                                    }
+                                }
+                                if (adjacentOwned) break;
+                            }
+                            
+                            this.gameGrid[y][x].purchasable = adjacentOwned;
+                        }
+                    }
+                }
+            }
+
+            getTilesToWork(centerX, centerY) {
+                let tiles = [];
+                
+                if (this.gameState.hasMegaTractor) {
+                    for (let dy = 0; dy < 6; dy++) {
+                        for (let dx = 0; dx < 6; dx++) {
+                            const newX = centerX + dx;
+                            const newY = centerY + dy;
+                            if (newX < this.GRID_WIDTH && newY < this.GRID_HEIGHT) {
+                                tiles.push({x: newX, y: newY});
+                            }
+                        }
+                    }
+                } else if (this.gameState.hasTractor) {
+                     for (let dy = 0; dy < 2; dy++) {
+                        for (let dx = 0; dx < 2; dx++) {
+                            const newX = centerX + dx;
+                            const newY = centerY + dy;
+                             if (newX < this.GRID_WIDTH && newY < this.GRID_HEIGHT) {
+                                tiles.push({x: newX, y: newY});
+                            }
+                        }
+                     }
+                } else {
+                    tiles.push({x: centerX, y: centerY});
+                }
+                
+                return tiles;
+            }
+
+            createLocustAttack() {
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const locust = document.createElement('div');
+                        locust.className = 'locust';
+                        locust.textContent = '🦗';
+                        locust.style.top = `${this.randomRange(50, window.innerHeight - 50)}px`;
+                        locust.style.animationDuration = `${this.randomRange(4, 7)}s`;
+                        document.getElementById('gameContainer').appendChild(locust);
+                        setTimeout(() => locust.remove(), 7000);
+                    }, i * 200);
+                }
+                
+                let destroyedCrops = 0;
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        const tile = this.gameGrid[y][x];
+                        if (tile.type === 'planted' && tile.owned && Math.random() < 0.3) {
+                            if (!tile.hasProtection) {
+                                tile.type = 'grass';
+                                tile.stage = 0;
+                                tile.timer = 0;
+                                destroyedCrops++;
+                            }
+                        }
+                    }
+                }
+                
+                if (destroyedCrops > 0) {
+                    this.showNotification(`🦗 ÚTOK KOBYLEK! Zničeno ${destroyedCrops} rostlin!`);
+                    this.createFloatingText(window.innerWidth/2, window.innerHeight/2, `💀 -${destroyedCrops} rostlin`, '#FF0000');
+                } else {
+                    this.showNotification('🦗 Kobylky přeletěly, ale nezpůsobily škody!');
+                }
+            }
+            
+            selectTool(tool, event) {
+                this.gameState.selectedTool = tool;
+                document.querySelectorAll('.inventory-slot').forEach(slot => {
+                    slot.classList.remove('selected');
+                });
+                event.currentTarget.classList.add('selected');
+            }
+
+            buyItem(item) {
+                const shopItem = this.shopItems[item];
+                if (!shopItem) return;
+                
+                const cost = typeof shopItem.cost === 'function' ? shopItem.cost() : shopItem.cost;
+                
+                if (this.gameState.money >= cost && shopItem.check()) {
+                    this.gameState.money -= cost;
+                    this.handlePurchase(item);
+                    this.updateUI();
+                } else {
+                    this.showNotification('Nemáš dostatek peněz nebo nesplňuješ podmínky!');
+                }
+            }
+
+            handlePurchase(item) {
+                const actions = {
+                    seeds: () => {
+                        this.gameState.seeds += 10;
+                        this.showNotification('Koupil jsi 10 semen!');
+                    },
+                    tractor: () => {
+                        this.gameState.hasTractor = true;
+                        this.hideElement('tractorItem');
+                        this.showElement('tractorStatus', 'block');
+                        this.showNotification('🚜 Traktor zakoupen!');
+                    },
+                    megatractor: () => {
+                        this.gameState.hasMegaTractor = true;
+                        this.gameState.hasTractor = false;
+                        this.hideElement('megatractorItem');
+                        this.hideElement('tractorItem');
+                        this.hideElement('tractorStatus');
+                        this.showElement('megatractorStatus', 'block');
+                        this.showNotification('🚚 MEGA TRAKTOR zakoupen!');
+                    },
+                    pesticideupgrade: () => {
+                        this.gameState.hasPesticideUpgrade = true;
+                        this.hideElement('pesticideUpgradeItem');
+                        this.showElement('pesticidesItem', 'flex');
+                        this.showElement('pesticidesSlot', 'flex');
+                        this.showElement('pesticideStatus', 'block');
+                        this.showNotification('🧪 Pesticidní laboratoř postavena!');
+                    },
+                    pesticides: () => {
+                        this.gameState.pesticides += 10;
+                        this.showNotification('☠️ Koupil jsi 10 pesticidů!');
+                    }
+                };
+                
+                if (actions[item]) {
+                    actions[item]();
+                }
+            }
+
+            showNotification(message) {
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.textContent = message;
+                document.getElementById('notifications').appendChild(notification);
+                setTimeout(() => notification.remove(), 5000);
+            }
+
+            createFloatingText(x, y, text, color = '#FFD700') {
+                const floatingText = document.createElement('div');
+                floatingText.className = 'floating-text';
+                floatingText.textContent = text;
+                floatingText.style.left = `${x}px`;
+                floatingText.style.top = `${y}px`;
+                floatingText.style.color = color;
+                document.getElementById('gameContainer').appendChild(floatingText);
+                setTimeout(() => floatingText.remove(), 2000);
+            }
+
+            updateUI() {
+                this.setText('money', this.gameState.money);
+                this.setText('ownedLands', this.gameState.ownedLands);
+                this.setText('level', this.gameState.level);
+                this.setText('totalHarvest', this.gameState.totalHarvest);
+                this.setText('seedCount', this.gameState.seeds);
+                
+                if (this.gameState.hasPesticideUpgrade) {
+                    this.setText('pesticideCount', this.gameState.pesticides);
+                }
+            }
+
+            handleTileClick(x, y, screenX, screenY) {
+                const tile = this.gameGrid[y][x];
+                
+                if (this.gameState.selectedTool === 'select') {
+                    if (!tile.owned && tile.purchasable) {
+                        const cost = this.landPrices[y][x];
+                        if (this.gameState.money >= cost) {
+                            this.gameState.money -= cost;
+                            tile.owned = true;
+                            tile.purchasable = false;
+                            this.gameState.ownedLands++;
+                            this.updatePurchasableLands();
+                            this.createFloatingText(screenX, screenY, `-${cost}$`, '#FF6B6B');
+                            this.showNotification(`Pozemek zakoupen za ${cost}$!`);
+                            this.updateUI();
+                        } else {
+                            this.showNotification('Nemáš dostatek peněz!');
+                        }
+                    } else if (tile.owned) {
+                        const status = `Vlhkost: ${Math.round(tile.moisture)}%, Úrodnost: ${tile.fertility}%`;
+                        this.showNotification(status);
+                    } else {
+                         this.showNotification('Tento pozemek nelze koupit. Musí sousedit s tvým.');
+                    }
+                    return;
+                }
+
+                if (!tile.owned) {
+                    this.showNotification(`Nejprve si musíš koupit tento pozemek!`);
+                    return;
+                }
+
+                const tilesToWork = this.getTilesToWork(x, y);
+                let workedTiles = 0;
+                let totalIncome = 0;
+
+                for (let tilePos of tilesToWork) {
+                    const workTile = this.gameGrid[tilePos.y][tilePos.x];
+                    if (!workTile.owned) continue;
+
+                    let success = false;
+                    switch (this.gameState.selectedTool) {
+                        case 'hoe':
+                            if (workTile.type === 'grass') {
+                                workTile.type = 'tilled';
+                                success = true;
+                            }
+                            break;
+                        case 'seeds':
+                            if (workTile.type === 'tilled' && this.gameState.seeds > 0) {
+                                workTile.type = 'planted';
+                                workTile.stage = 0;
+                                workTile.timer = 0;
+                                this.gameState.seeds--;
+                                success = true;
+                            }
+                            break;
+                        case 'water':
+                            if (workTile.type === 'planted' || workTile.type === 'tilled') {
+                                workTile.moisture = Math.min(workTile.moisture + 50, 100);
+                                if (workTile.type === 'planted' && workTile.stage < 3) {
+                                    workTile.timer += 30;
+                                    if (workTile.timer >= 100) {
+                                        workTile.timer -= 100;
+                                        workTile.stage++;
+                                    }
+                                }
+                                success = true;
+                            }
+                            break;
+                        case 'harvest':
+                            if (workTile.type === 'planted' && workTile.stage === 3) {
+                                const baseIncome = this.randomRange(50, 100);
+                                const income = workTile.hasProtection ? Math.floor(baseIncome * 0.7) : baseIncome;
+                                totalIncome += income;
+                                
+                                workTile.type = 'grass';
+                                workTile.stage = 0;
+                                workTile.timer = 0;
+                                workTile.hasProtection = false;
+                                
+                                this.gameState.totalHarvest++;
+                                success = true;
+                            }
+                            break;
+                        case 'pesticides':
+                            if (workTile.type === 'planted' && this.gameState.pesticides > 0 && !workTile.hasProtection) {
+                                workTile.hasProtection = true;
+                                this.gameState.pesticides--;
+                                success = true;
+                            }
+                            break;
+                    }
+                    if (success) workedTiles++;
+                }
+
+                if (workedTiles > 0) {
+                     if (this.gameState.selectedTool === 'harvest' && totalIncome > 0) {
+                        this.gameState.money += totalIncome;
+                        this.createFloatingText(screenX, screenY, `+${totalIncome}$`);
+                    }
+                    this.updateUI();
+                }
+            }
+
+            update(deltaTime) {
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        const tile = this.gameGrid[y][x];
+                        
+                        if (tile.moisture > 0) {
+                            tile.moisture -= 2 * deltaTime;
+                        }
+
+                        if (tile.type === 'planted' && tile.stage < 3) {
+                            if (tile.moisture > 10) {
+                                tile.timer += (tile.fertility / 100) * deltaTime * 5;
+                                if (tile.timer >= 100) {
+                                    tile.timer = 0;
+                                    tile.stage++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const currentTime = Date.now();
+                if (currentTime - this.gameState.lastLocustAttack > 60000) {
+                    this.gameState.lastLocustAttack = currentTime;
+                    if (Math.random() < 0.25) {
+                        this.createLocustAttack();
+                    }
+                }
+            }
+
+            /************************************************************/
+            /* KOMPLETNĚ PŘEPRACOVANÁ FUNKCE PRO VYKRESLENÍ HRY          */
+            /************************************************************/
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.frameCount++;
+
+                const plantIcons = ['🌱', '🌿', '🌾', '🌾'];
+
+                for (let y = 0; y < this.GRID_HEIGHT; y++) {
+                    for (let x = 0; x < this.GRID_WIDTH; x++) {
+                        const tile = this.gameGrid[y][x];
+                        const drawX = x * this.TILE_SIZE;
+                        const drawY = y * this.TILE_SIZE;
+
+                        // Krok 1: Vykreslení základní textury
+                        let baseTexture = this.textures.grass;
+                        if (tile.type === 'tilled' || tile.type === 'planted') {
+                            baseTexture = this.textures.tilled;
+                        }
+                        this.ctx.fillStyle = baseTexture;
+                        this.ctx.fillRect(drawX, drawY, this.TILE_SIZE, this.TILE_SIZE);
+
+                        // Krok 2: Efekt vlhkosti
+                        if (tile.type !== 'grass' && tile.owned) {
+                             const moistureAlpha = Math.max(0, tile.moisture / 100 - 0.2);
+                             this.ctx.fillStyle = `rgba(0, 80, 220, ${moistureAlpha})`;
+                             this.ctx.fillRect(drawX, drawY, this.TILE_SIZE, this.TILE_SIZE);
+                        }
+                       
+                        // Krok 3: Vykreslení ikon rostlin
+                        if (tile.type === 'planted') {
+                            const icon = plantIcons[tile.stage];
+                            const fontSize = 20 + tile.stage * 4;
+                            
+                            this.ctx.font = `bold ${fontSize}px Arial`;
+                            this.ctx.textAlign = 'center';
+                            this.ctx.textBaseline = 'bottom';
+                            
+                            // Stín pro hloubku
+                            this.ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                            this.ctx.shadowBlur = 5;
+                            this.ctx.shadowOffsetY = 2;
+
+                            // Záře pro zralou pšenici
+                            if (tile.stage === 3) {
+                                this.ctx.shadowColor = '#FFD700';
+                                this.ctx.shadowBlur = 15;
+                            }
+                            
+                            this.ctx.fillText(icon, drawX + this.TILE_SIZE / 2, drawY + this.TILE_SIZE - 2);
+
+                            // Reset stínů pro další prvky
+                            this.ctx.shadowBlur = 0;
+                            this.ctx.shadowOffsetY = 0;
+                        }
+
+                        // Krok 4: Ochrana pesticidy
+                        if (tile.hasProtection) {
+                            this.ctx.fillStyle = 'rgba(128, 0, 128, 0.3)';
+                            this.ctx.fillRect(drawX, drawY, this.TILE_SIZE, this.TILE_SIZE);
+                            this.ctx.font = '20px Arial';
+                            this.ctx.fillText('🛡️', drawX + 5, drawY + 20);
+                        }
+                        
+                        // Krok 5: Nevlastněné pozemky
+                        if (!tile.owned) {
+                            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                            this.ctx.fillRect(drawX, drawY, this.TILE_SIZE, this.TILE_SIZE);
+                            if (tile.purchasable) {
+                                this.ctx.strokeStyle = '#FFD700';
+                                this.ctx.lineWidth = 2;
+                                this.ctx.strokeRect(drawX + 1, drawY + 1, this.TILE_SIZE - 2, this.TILE_SIZE - 2);
+                                
+                                this.ctx.fillStyle = 'white';
+                                this.ctx.font = 'bold 12px Courier New';
+                                this.ctx.textAlign = 'center';
+                                this.ctx.textBaseline = 'middle';
+                                this.ctx.fillText(`$${this.landPrices[y][x]}`, drawX + this.TILE_SIZE / 2, drawY + this.TILE_SIZE / 2);
+                            }
+                        }
+
+                        // Krok 6: Jemnější mřížka
+                        this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+                        this.ctx.strokeRect(drawX, drawY, this.TILE_SIZE, this.TILE_SIZE);
+                    }
+                }
+            }
+
+            gameLoop(timestamp) {
+                if (!this.lastTimestamp) {
+                    this.lastTimestamp = timestamp;
+                }
+                const deltaTime = (timestamp - this.lastTimestamp) / 1000;
+                this.lastTimestamp = timestamp;
+                
+                this.update(deltaTime);
+                this.draw();
+                
+                requestAnimationFrame(this.gameLoop.bind(this));
+            }
+        }
+
+        const game = new WheatFarmGame();
+    </script>
+</body>
+</html>
