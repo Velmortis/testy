@@ -1,0 +1,12 @@
+{
+    "control": [
+        { "VTOY_WIN11_BYPASS_CHECK": "1" },
+        { "VTOY_WIN11_BYPASS_NRO": "1" }
+    ],
+    "auto_install": [
+        {
+            "parent": "/Windows",
+            "template": "/ventoy/script/autounattend.xml"
+        }
+    ]
+}
